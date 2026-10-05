@@ -1,12 +1,26 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-function requirePublicEnv(
-  name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-): string {
-  const value = process.env[name]?.trim();
+function requireSupabaseUrl(): string {
+  const value =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 
   if (!value) {
-    throw new Error(`${name}_missing`);
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL_missing",
+    );
+  }
+
+  return value;
+}
+
+function requireSupabaseAnonKey(): string {
+  const value =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+  if (!value) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY_missing",
+    );
   }
 
   return value;
@@ -14,7 +28,7 @@ function requirePublicEnv(
 
 export function createSupabaseBrowserClient() {
   return createBrowserClient(
-    requirePublicEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requirePublicEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    requireSupabaseUrl(),
+    requireSupabaseAnonKey(),
   );
 }
