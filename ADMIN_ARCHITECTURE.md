@@ -73,3 +73,29 @@ Do not alter from the Admin frontend:
 - accounting writers
 
 Admin APIs may observe or govern explicitly supported state only.
+
+## Admin authentication bootstrap
+
+The dedicated Admin application authenticates users with the same
+Supabase Auth authority used by Neuravolv identity, but Platform Admin
+authorization is never inferred by the frontend.
+
+Flow:
+
+`Supabase Auth -> authenticated session -> server-only BFF -> bearer token -> /api/admin/me -> Platform Admin authority`
+
+The browser never sends a privileged backend secret.
+
+The backend remains authoritative for:
+
+- Platform Admin membership
+- active/inactive status
+- Platform Admin role
+- effective permissions
+- strict/compat Admin authorization mode
+
+A successful Supabase login alone is not Platform Admin authorization.
+
+The local Admin BFF must preserve or generate `X-Request-ID`.
+
+Mutating BFF operations must never be automatically retried.
