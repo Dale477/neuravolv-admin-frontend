@@ -35,3 +35,33 @@ textarea,
 select {
   font: inherit;
 }
+
+::selection {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+html {
+  background: #080a0e;
+}
+
+body {
+  background: #080a0e;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
