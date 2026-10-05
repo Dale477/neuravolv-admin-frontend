@@ -1,119 +1,193 @@
 import {
-  Activity,
-  CircleDollarSign,
-  HeartPulse,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-
-import {
   AdminPageHeader,
 } from "@/components/admin/shell/AdminPageHeader";
 
 import {
-  AdminSurfaceNotice,
-} from "@/components/admin/shell/AdminSurfaceNotice";
+  DataError,
+  MetricCard,
+  Panel,
+  StatusBadge,
+  formatNumber,
+  formatUsd,
+  safeText,
+} from "@/components/admin/operations/OperationalUI";
 
-const cards = [
-  {
-    label: "Users",
-    value: "—",
-    helper: "Awaiting live dashboard data",
-    icon: Users,
-  },
-  {
-    label: "Usage",
-    value: "—",
-    helper: "Awaiting live dashboard data",
-    icon: Activity,
-  },
-  {
-    label: "Cost",
-    value: "—",
-    helper: "Awaiting canonical accounting data",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Platform health",
-    value: "—",
-    helper: "Awaiting health endpoint integration",
-    icon: HeartPulse,
-  },
-];
+import {
+  getAccountingSummary,
+  getAudit,
+  getHealth,
+  getUsers,
+} from "@/lib/admin/data";
 
-export default function OverviewPage() {
+export const dynamic = "force-dynamic";
+
+export default async function OverviewPage() {
+  const [
+    health,
+    users,
+    accounting,
+    audit,
+  ] = await Promise.all([
+    getHealth(),
+    getUsers(),
+    getAccountingSummary(),
+    getAudit(8),
+  ]);
+
+  const userCount =
+    users.data?.count
+    ?? users.data?.users?.length
+    ?? null;
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
         eyebrow="Operations"
         title="Platform Overview"
-        description="Operational status, platform activity, usage, cost, and administrative events across Neuravolv."
+        description="Live administrative status, user activity, canonical accounting, and audit evidence."
         state="operational"
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => {
-          const Icon = card.icon;
+        <MetricCard
+          label="Users"
+          value={formatNumber(userCount)}
+          helper="Authoritative Admin user listing"
+        />
 
-          return (
-            <section
-              key={card.label}
-              className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-5"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-white/40">
-                  {card.label}
-                </p>
+        <MetricCard
+          label="Usage events"
+          value={formatNumber(
+            accounting.data?.usage_events,
+          )}
+          helper="Canonical accounting events in the current reporting scope"
+        />
 
-                <Icon
-                  className="h-4 w-4 text-white/25"
-                  strokeWidth={1.7}
-                />
-              </div>
+        <MetricCard
+          label="Direct cost"
+          value={formatUsd(
+            accounting.data?.direct_cost_usd,
+          )}
+          helper={
+            accounting.data?.unpriced_components
+              ? `${accounting.data.unpriced_components} component(s) remain unpriced`
+              : "Canonical cost accounting"
+          }
+        />
 
-              <p className="mt-5 text-3xl font-semibold tracking-tight text-white/85">
-                {card.value}
-              </p>
-
-              <p className="mt-2 text-xs text-white/30">
-                {card.helper}
-              </p>
-            </section>
-          );
-        })}
+        <MetricCard
+          label="Platform health"
+          value={
+            health.data?.status
+              ?? "Unavailable"
+          }
+          helper={
+            health.data
+              ? `Coverage: ${health.data.coverage}`
+              : health.error
+          }
+        />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <section className="min-h-[260px] rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
-          <div className="flex items-center gap-2">
-            <HeartPulse className="h-4 w-4 text-white/30" />
+      <div className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
+        <Panel
+          title="Platform Health"
+          description="Admin-safe probes only. Not-probed subsystems are not represented as healthy."
+        >
+          {health.data ? (
+            <div className="space-y-3">
+              {Object.entries(
+                health.data.checks,
+              ).map(
+                ([name, check]) => (
+                  <div
+                    key={name}
+                    className="flex items-center justify-between gap-4 border-b border-white/[0.05] pb-3 last:border-0 last:pb-0"
+                  >
+                    <div>
+                      <p className="text-sm text-white/70">
+                        {name}
+                      </p>
 
-            <h2 className="text-sm font-medium text-white/75">
-              Platform Health
-            </h2>
-          </div>
+                      {check.reason ? (
+                        <p className="mt-1 text-xs text-white/30">
+                          {check.reason}
+                        </p>
+                      ) : null}
+                    </div>
 
-          <div className="mt-10 flex h-32 items-center justify-center rounded-lg border border-dashed border-white/[0.08] text-sm text-white/25">
-            Live health integration follows in Gate C2
-          </div>
-        </section>
+                    <StatusBadge
+                      value={
+                        check.status
+                        ?? "unknown"
+                      }
+                    />
+                  </div>
+                ),
+              )}
+            </div>
+          ) : (
+            <DataError
+              message={
+                health.error
+                ?? "Platform health unavailable."
+              }
+              requestId={
+                health.requestId
+              }
+            />
+          )}
+        </Panel>
 
-        <section className="min-h-[260px] rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-white/30" />
+        <Panel
+          title="Recent Administrative Activity"
+          description="Canonical append-only Platform Admin audit evidence."
+        >
+          {audit.data ? (
+            <div className="space-y-3">
+              {audit.data.items
+                .slice(0, 8)
+                .map(
+                  (item, index) => (
+                    <div
+                      key={
+                        String(
+                          item.id
+                          ?? index
+                        )
+                      }
+                      className="border-b border-white/[0.05] pb-3 last:border-0"
+                    >
+                      <p className="text-sm text-white/70">
+                        {safeText(
+                          item.action,
+                        )}
+                      </p>
 
-            <h2 className="text-sm font-medium text-white/75">
-              Administrative Activity
-            </h2>
-          </div>
-
-          <div className="mt-10 flex h-32 items-center justify-center rounded-lg border border-dashed border-white/[0.08] text-sm text-white/25">
-            Live audit integration follows in Gate C2
-          </div>
-        </section>
+                      <p className="mt-1 text-xs text-white/30">
+                        {safeText(
+                          item.target
+                          ?? item.target_id
+                          ?? item.resource,
+                        )}
+                      </p>
+                    </div>
+                  ),
+                )}
+            </div>
+          ) : (
+            <DataError
+              message={
+                audit.error
+                ?? "Audit data unavailable."
+              }
+              requestId={
+                audit.requestId
+              }
+            />
+          )}
+        </Panel>
       </div>
-
-      <AdminSurfaceNotice state="operational" />
     </div>
   );
 }
